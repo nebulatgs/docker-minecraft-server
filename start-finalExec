@@ -173,6 +173,10 @@ function copyFilesForCurseForge() {
 }
 
 mcServerRunnerArgs="--stop-duration ${STOP_DURATION:-60}s"
+if [[ ${STOP_SERVER_ANNOUNCE_DELAY} ]]; then
+  mcServerRunnerArgs="${mcServerRunnerArgs} --stop-server-announce-delay ${STOP_SERVER_ANNOUNCE_DELAY}s"
+fi
+
 if [[ ${TYPE} == "CURSE_INSTANCE" ]]; then
     if isTrue ${DEBUG_EXEC}; then
       set -x
@@ -225,6 +229,10 @@ EOF
   else
     exec mc-server-runner ${mcServerRunnerArgs} "${finalArgs[@]}"
   fi
+elif [[ -x run.sh ]]; then
+  log "Using Forge supplied run.sh script..."
+  echo $JVM_XX_OPTS $JVM_OPTS $expandedDOpts > user_jvm_args.txt
+  exec mc-server-runner ${mcServerRunnerArgs} --shell bash run.sh
 else
   # If we have a bootstrap.txt file... feed that in to the server stdin
   if [ -f /data/bootstrap.txt ]; then
