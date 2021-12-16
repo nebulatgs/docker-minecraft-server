@@ -41,6 +41,7 @@ By default, the container will download the latest version of the "vanilla" [Min
    * [Troubleshooting](#troubleshooting)
    * [Server types](#server-types)
       * [Running a Forge Server](#running-a-forge-server)
+      * [Running a Fabric Server](#running-a-fabric-server)
       * [Running a Bukkit/Spigot server](#running-a-bukkitspigot-server)
       * [Running a Paper server](#running-a-paper-server)
       * [Running an Airplane server](#running-an-airplane-server)
@@ -48,10 +49,10 @@ By default, the container will download the latest version of the "vanilla" [Min
       * [Running a Magma server](#running-a-magma-server)
       * [Running a Mohist server](#running-a-mohist-server)
       * [Running a Catserver type server](#running-a-catserver-type-server)
-      * [Running an Canyon server](#running-an-canyon-server)
+      * [Running a Canyon server](#running-a-canyon-server)
       * [Running a SpongeVanilla server](#running-a-spongevanilla-server)
-      * [Running a Fabric Server](#running-a-fabric-server)
       * [Running a Limbo server](#running-a-limbo-server)
+      * [Running a Crucible server](#running-a-crucible-server)
    * [Running a server with a Feed the Beast modpack](#running-a-server-with-a-feed-the-beast-modpack)
       * [Environment Variables:](#environment-variables)
       * [Upgrading](#upgrading)
@@ -60,10 +61,13 @@ By default, the container will download the latest version of the "vanilla" [Min
       * [Modpack data directory](#modpack-data-directory)
       * [Buggy start scripts](#buggy-start-scripts)
       * [Fixing "unable to launch forgemodloader"](#fixing-unable-to-launch-forgemodloader)
+   * [Running a server with a packwiz modpack](#running-a-server-with-a-packwiz-modpack)
    * [Working with mods and plugins](#working-with-mods-and-plugins)
       * [Optional plugins, mods, and config attach points](#optional-plugins-mods-and-config-attach-points)
       * [Auto-downloading SpigotMC/Bukkit/PaperMC plugins](#auto-downloading-spigotmcbukkitpapermc-plugins)
-      * [Downloadable mod/plugin pack for Forge, Bukkit, and Spigot Servers](#downloadable-modplugin-pack-for-forge-bukkit-and-spigot-servers)
+      * [Downloadable mod/plugin pack for Forge, Fabric, and Bukkit-like Servers](#downloadable-modplugin-pack-for-forge-fabric-and-bukkit-like-servers)
+      * [Generic pack file](#generic-pack-file)
+      * [Mod/Plugin URL Listing File](#modplugin-url-listing-file)
       * [Remove old mods/plugins](#remove-old-modsplugins)
    * [Working with world data](#working-with-world-data)
       * [Downloadable world](#downloadable-world)
@@ -128,8 +132,9 @@ By default, the container will download the latest version of the "vanilla" [Min
       * [Description](#description)
       * [Enabling Autopause](#enabling-autopause)
    * [Running on RaspberryPi](#running-on-raspberrypi)
+   * [Contributing](#contributing)
 
-<!-- Added by: runner, at: Mon Sep 20 02:33:20 UTC 2021 -->
+<!-- Added by: runner, at: Tue Dec 14 02:14:33 UTC 2021 -->
 
 <!--te-->
 
@@ -151,14 +156,21 @@ docker exec -i mc rcon-cli
 
 Note: The `-i` is required for interactive use of rcon-cli.
 
-To run a simple, one-shot command, such as stopping a Minecraft server, pass the command as
-arguments to `rcon-cli`, such as:
+To run a simple, one-shot command, such as stopping a Minecraft server, pass the command as arguments to `rcon-cli`, such as:
 
 ```
 docker exec mc rcon-cli stop
 ```
 
 _The `-i` is not needed in this case._
+
+If rcon is disabled you can send commands by passing them as arguments to the packaged `mc-send-to-console` script. For example, a player can be op'ed in the container `mc` with: 
+
+```shell
+docker exec mc mc-send-to-console op player
+            |                     |
+            +- container name     +- Minecraft commands start here
+```
 
 In order to attach and interact with the Minecraft server, add `-it` when starting the container, such as
 
@@ -213,6 +225,8 @@ services:
       - ./minecraft-data:/data
 ```
 
+> NOTE: if you have SELinux enabled, then you might need to add `:Z` to the end of volume mount specifications, [as described here](https://prefetch.net/blog/2017/09/30/using-docker-volumes-on-selinux-enabled-servers/).
+
 ### Converting anonymous `/data` volume to named volume
 
 If you had used the commands in the first section, without the `-v` volume attachment, then an anonymous data volume was created by Docker. You can later bring over that content to a named or host attached volume using the following procedure.
@@ -257,25 +271,26 @@ the server jar remain in the `/data` directory. It is safe to remove those._
 
 ## Running Minecraft server on different Java version
 
-To use a different version of Java, please use a docker tag to run your Minecraft server.
+When using the image `itzg:/minecraft-server` without a tag, the `latest` image tag is implied from the table below. To use a different version of Java, please use an alternate tag to run your Minecraft server container.
 
 | Tag name       | Java version | Linux  | JVM Type | Architecture      |
 | -------------- | -------------|--------|----------|-------------------|
-| latest         | 16           | Debian | Hotspot  | amd64,arm64,armv7 |
+| latest         | 17           | Debian | Hotspot  | amd64,arm64,armv7 |
 | java8          | 8            | Alpine | Hotspot  | amd64             |
 | java8-multiarch | 8           | Debian | Hotspot  | amd64,arm64,armv7 |
 | java8-openj9   | 8            | Debian | OpenJ9   | amd64             |
 | java11         | 11           | Debian | Hotspot  | amd64,arm64,armv7 |
 | java11-openj9  | 11           | Debian | OpenJ9   | amd64             |
-| java16         | 16           | Debian | Hotspot  | amd64,arm64,armv7 |
 | java16-openj9  | 16           | Debian | OpenJ9   | amd64             |
-| multiarch-latest | 15+        | Debian | Hotspot  | amd64,arm64,armv7 |
+| java17         | 17           | Ubuntu | Hotspot  | amd64,arm64,armv7 |
 
-For example, to use Java version 16 on any supported architecture:
+For example, to use Java version 8 on any supported architecture:
 
-    docker run --name mc itzg/minecraft-server:java16
+    docker run --name mc itzg/minecraft-server:java8-multiarch
 
-> Keep in mind that some versions of Minecraft server can't work on the newest versions of Java. Also, FORGE doesn't support openj9 JVM implementation.
+> Keep in mind that some versions of Minecraft server, such as Forge before 1.17, can't work on the newest versions of Java. Instead, one of the Java 8 images should be used. Also, FORGE doesn't support openj9 JVM implementation.
+> 
+> Some versions of vanilla Minecraft, such as 1.10, also do not run correctly with Java 17. If in doubt, use `java8-multiarch` for any version less than 1.17.
 
 ### Deprecated Image Tags
 
@@ -284,6 +299,8 @@ The following image tags have been deprecated and are no longer receiving update
 - adopt14
 - adopt15
 - openj9-nightly
+- multiarch-latest
+- java16
 
 ## Healthcheck
 
@@ -386,6 +403,30 @@ the URL with `FORGE_INSTALLER_URL`, such as:
 
 In both of the cases above, there is no need for the `VERSION` or `FORGEVERSION` variables.
 
+### Running a Fabric Server
+
+Enable [Fabric server](https://fabricmc.net/) mode by adding a `-e TYPE=FABRIC` to your command-line. By default, the container will install the latest [fabric-loader](https://fabricmc.net/wiki/documentation:fabric_loader) using the latest [fabric-installer](https://fabricmc.net/use/), against the minecraft server version you have defined with `VERSION` (defaulting to the latest vanilla release of the game).
+
+```
+docker run -d -v /path/on/host:/data \
+    -e TYPE=FABRIC \
+    -p 25565:25565 -e EULA=TRUE --name mc itzg/minecraft-server
+```
+
+See the [Working with mods and plugins](#working-with-mods-and-plugins) section to set up Fabric mods and configuration.
+
+A specific loader version other than the latest can be requested using `FABRIC_LOADER_VERSION`, such as:
+
+```
+docker run -d -v /path/on/host:/data ... \
+    -e FABRIC_LOADER_VERSION=0.12.8
+```
+
+If you wish to use an alternative installer you can:
+* Specify an alternative version using `FABRIC_INSTALLER_VERSION` (such as `-e FABRIC_INSTALLER_VERSION=0.10.2`)
+* Provide the path to a custom installer jar available to the container with `FABRIC_INSTALLER`, relative to `/data` (such as `-e FABRIC_INSTALLER=fabric-installer-0.5.0.32.jar`)
+* Provide the URL to a custom installer jar with `FABRIC_INSTALLER_URL` (such as `-e FABRIC_INSTALLER_URL=http://HOST/fabric-installer-0.5.0.32.jar`)
+
 ### Running a Bukkit/Spigot server
 
 Enable Bukkit/Spigot server mode by adding a `-e TYPE=BUKKIT` or `-e TYPE=SPIGOT` to your command-line.
@@ -401,7 +442,7 @@ If you are hosting your own copy of Bukkit/Spigot you can override the download 
 
 You can build spigot from source by adding `-e BUILD_FROM_SOURCE=true`
 
-Plugins can either be managed within the `plugins` subdirectory of the [data directory](#data-directory) or you can also [attach a `/plugins` volume](#deploying-plugins-from-attached-volume). If you add plugins while the container is running, you'll need to restart it to pick those up.
+Plugins can either be managed within the `plugins` subdirectory of the [data directory](#data-directory) or you can also [attach a `/plugins` volume](#optional-plugins-mods-and-config-attach-points). If you add plugins while the container is running, you'll need to restart it to pick those up.
 
 [You can also auto-download plugins using `SPIGET_RESOURCES`.](#auto-downloading-spigotmcbukkitpapermc-plugins)
 
@@ -411,21 +452,15 @@ Plugins can either be managed within the `plugins` subdirectory of the [data dir
 
 Enable Paper server mode by adding a `-e TYPE=PAPER` to your command-line.
 
-By default the container will run the latest build of [Paper server](https://papermc.io/downloads)
-but you can also choose to run a specific build with `-e PAPERBUILD=205`.
+By default, the container will run the latest build of [Paper server](https://papermc.io/downloads) but you can also choose to run a specific build with `-e PAPERBUILD=205`.
 
     docker run -d -v /path/on/host:/data \
         -e TYPE=PAPER \
         -p 25565:25565 -e EULA=TRUE --name mc itzg/minecraft-server
 
-If you are hosting your own copy of Paper you can override the download URL with:
+If you are hosting your own copy of Paper you can override the download URL with `PAPER_DOWNLOAD_URL=<url>`.
 
-- -e PAPER_DOWNLOAD_URL=<url>
-
-An example compose file is provided at
-[examples/docker-compose-paper.yml](examples/docker-compose-paper.yml).
-
-If you have attached a host directory to the `/data` volume, then you can install plugins via the `plugins` subdirectory. You can also [attach a `/plugins` volume](#deploying-plugins-from-attached-volume). If you add plugins while the container is running, you'll need to restart it to pick those up.
+If you have attached a host directory to the `/data` volume, then you can install plugins via the `plugins` subdirectory. You can also [attach a `/plugins` volume](#optional-plugins-mods-and-config-attach-points). If you add plugins while the container is running, you'll need to restart it to pick those up.
 
 [You can also auto-download plugins using `SPIGET_RESOURCES`.](#auto-downloading-spigotmcbukkitpapermc-plugins)
 
@@ -435,7 +470,7 @@ An [Airplane](https://airplane.gg) server, which is "a stable, optimized, well s
 
     -e TYPE=AIRPLANE
 
-> NOTE: The `VERSION` variable is used to select an Airplane branch to download from. The available options are "LATEST" "1.17" "1.16" "PURPUR" and "PURPUR-1.16"
+> NOTE: The `VERSION` variable is used to select an Airplane branch to download from. The available options are "LATEST" "1.17" and "PURPUR"
 
 Extra variables:
 - `AIRPLANE_BUILD=lastSuccessfulBuild` : set a specific Airplane build to use
@@ -486,62 +521,35 @@ A [Catserver](http://catserver.moe/) type server can be used with
 
 > **NOTE** Catserver only provides a single release stream, so `VERSION` is ignored
 
-### Running an Canyon server
+### Running a Canyon server
 
 [Canyon](https://github.com/canyonmodded/canyon) is a fork of CraftBukkit for Minecraft Beta 1.7.3. It includes multiple enhancements whilst also retaining compatibility with old Bukkit plugins and mods as much as possible.
 
     -e VERSION=b1.7.3 -e TYPE=CANYON
 
-> **NOTE** only `VERSION=b1.7.3` is supported
+> **NOTE** only `VERSION=b1.7.3` is supported. Since that version pre-dates the health check mechanism used by this image, that will need to be disabled by setting `DISABLE_HEALTHCHECK=true`.
 
-> **NOTE** only Java 8 is supported
-
-By default the latest build will be used; however, a specific build number can be selected by setting `CANYON_BUILD`, such as
+By default, the latest build will be used; however, a specific build number can be selected by setting `CANYON_BUILD`, such as
 
     -e CANYON_BUILD=11
 
 ### Running a SpongeVanilla server
 
 Enable SpongeVanilla server mode by adding a `-e TYPE=SPONGEVANILLA` to your command-line.
+    
 By default the container will run the latest `STABLE` version.
 If you want to run a specific version, you can add `-e SPONGEVERSION=1.11.2-6.1.0-BETA-19` to your command-line.
 
+Beware that current [Sponge](https://www.spongepowered.org) `STABLE` versions for Minecraft 1.12 require using [the Java 8 tag](#running-minecraft-server-on-different-java-version):
+    
     docker run -d -v /path/on/host:/data -e TYPE=SPONGEVANILLA \
-        -p 25565:25565 -e EULA=TRUE --name mc itzg/minecraft-server
+        -p 25565:25565 -e EULA=TRUE --name mc itzg/minecraft-server:java8-multiarch
 
 You can also choose to use the `EXPERIMENTAL` branch.
 Just change it with `SPONGEBRANCH`, such as:
 
     $ docker run -d -v /path/on/host:/data ... \
         -e TYPE=SPONGEVANILLA -e SPONGEBRANCH=EXPERIMENTAL ...
-
-### Running a Fabric Server
-
-Enable [Fabric server](http://fabricmc.net/use/) mode by adding a `-e TYPE=FABRIC` to your command-line. By default, the container will run the latest version, but you can also choose to run a specific version with `VERSION`.
-
-```
-docker run -d -v /path/on/host:/data \
-    -e TYPE=FABRIC \
-    -p 25565:25565 -e EULA=TRUE --name mc itzg/minecraft-server
-```
-
-A specific installer version can be requested using `FABRIC_INSTALLER_VERSION`.
-
-To use a pre-downloaded Fabric installer, place it in a directory attached into the container, such as the `/data` volume and specify the name of the installer file with `FABRIC_INSTALLER`, such as:
-
-```
-docker run -d -v /path/on/host:/data ... \
-    -e FABRIC_INSTALLER=fabric-installer-0.5.0.32.jar ...
-```
-
-To download a Fabric installer from a custom location, such as your own file repository, specify the URL with `FABRIC_INSTALLER_URL`, such as:
-
-```
-docker run -d -v /path/on/host:/data ... \
-    -e FABRIC_INSTALLER_URL=http://HOST/fabric-installer-0.5.0.32.jar ...
-```
-
-In order to add mods, you have two options:
 
 ### Running a Limbo server
 
@@ -556,6 +564,16 @@ Configuration options with defaults:
 - `FORCE_REDOWNLOAD`=false
 - `LIMBO_SCHEMA_FILENAME`=default.schem
 - `LEVEL`="Default;${LIMBO_SCHEMA_FILENAME}"
+
+### Running a Crucible server
+
+A [Crucible](https://github.com/CrucibleMC/Crucible) server can be run by setting `TYPE` to `CRUCIBLE`.
+
+Configuration options with defaults:
+
+- `CRUCIBLE_RELEASE`=latest
+
+Crucible is only available for 1.7.10, so be sure to set `VERSION=1.7.10`.
 
 ## Running a server with a Feed the Beast modpack
 
@@ -628,6 +646,20 @@ then you apply a workaround by adding this to the run invocation:
 
     -e FTB_LEGACYJAVAFIXER=true
 
+## Running a server with a packwiz modpack
+
+[packwiz](https://packwiz.infra.link/) is a CLI tool for maintaining and providing modpack definitions, with support for both CurseForge and Modrinth as sources. See the [packwiz tutorial](https://packwiz.infra.link/tutorials/getting-started/) for more information.
+
+To configure server mods using a packwiz modpack, set the `PACKWIZ_URL` environment variable to the location of your `pack.toml` modpack definition:
+
+    docker run -d -v /path/on/host:/data -e TYPE=FABRIC \
+        -e "PACKWIZ_URL=https://example.com/modpack/pack.toml" \
+        itzg/minecraft-server
+
+packwiz modpack defitions are processed before other mod definitions (`MODPACK`, `MODS`, etc.) to allow for additional processing/overrides you may want to perform (in case of mods not available via Modrinth/CurseForge, or you do not maintain the pack).
+
+> packwiz is pre-configured to only download server mods. If client-side mods are downloaded and cause issues, check your pack.toml configuration, and make sure any client-only mods are not set to `"both"`, but rather `"client"` for the side configuration item.
+
 ## Working with mods and plugins
 
 ### Optional plugins, mods, and config attach points
@@ -638,7 +670,7 @@ There are optional volume paths that can be attached to supply content to be cop
 : contents are synchronized into `/data/plugins` for Bukkit related server types. Set `SYNC_SKIP_NEWER_IN_DESTINATION=false` if you want files from `/plugins` to take precedence over newer files in `/data/plugins`.
 
 `/mods`
-: contents are synchronized into `/data/mods` for Forge related server types. The destination can be changed by setting `COPY_MODS_DEST`.
+: contents are synchronized into `/data/mods` for Fabric and Forge related server types. The destination can be changed by setting `COPY_MODS_DEST`.
 
 `/config`
 : contents are synchronized into `/data/config` by default, but can be changed with `COPY_CONFIG_DEST`. For example, `-v ./config:/config -e COPY_CONFIG_DEST=/data` will allow you to copy over files like `bukkit.yml` and so on directly into the server directory. Set `SYNC_SKIP_NEWER_IN_DESTINATION=false` if you want files from `/config` to take precedence over newer files in `/data/config`.
@@ -651,7 +683,7 @@ For example: `-e REMOVE_OLD_MODS=TRUE -e REMOVE_OLD_MODS_INCLUDE="*.jar" -e REMO
 
 These paths work well if you want to have a common set of modules in a separate location, but still have multiple worlds with different server requirements in either persistent volumes or a downloadable archive.
 
-> For more flexibility with mods/plugins preparation, you can declare directories to use in [the `MODS` variable](#downloadable-modplugin-pack-for-forge-bukkit-and-spigot-servers)
+> For more flexibility with mods/plugins preparation, you can declare directories to use in [the `MODS` variable](#downloadable-modplugin-pack-for-forge-fabric-and-bukkit-like-servers)
 
 ### Auto-downloading SpigotMC/Bukkit/PaperMC plugins
 
@@ -668,10 +700,10 @@ For example, the following will auto-download the [EssentialsX](https://www.spig
 
     -e SPIGET_RESOURCES=9089,34315
 
-### Downloadable mod/plugin pack for Forge, Bukkit, and Spigot Servers
+### Downloadable mod/plugin pack for Forge, Fabric, and Bukkit-like Servers
 
 Like the `WORLD` option above, you can specify the URL or path of a "mod pack"
-to download and install into `mods` for Forge or `plugins` for Bukkit/Spigot.
+to download and install into `mods` for Forge/Fabric or `plugins` for Bukkit/Spigot.
 To use this option pass the environment variable `MODPACK`, such as
 
     docker run -d -e MODPACK=http://www.example.com/mods/modpack.zip ...
@@ -687,14 +719,42 @@ You may also download or copy over individual mods using the `MODS` environment 
 
   docker run -d -e MODS=https://www.example.com/mods/mod1.jar,/plugins/common,/plugins/special/mod2.jar ...
 
+### Generic pack file
+
+To install all of the server content (jars, mods, plugins, configs, etc) from a zip file, such as a CurseForge modpack that is missing a server start script, then set `GENERIC_PACK` to the container path of the zip file. That, combined with `TYPE`, allows for custom content along with container managed server download and install.  
+
+If multiple generic packs need to be applied together, set `GENERIC_PACKS` instead, with a comma separated list of zip file paths and/or URLs to zip files.
+
+### Mod/Plugin URL Listing File 
+
+As an alternative to `MODS`, the variable `MODS_FILE` can be set with the path to a text file listing a mod/plugin URL on each line. For example, the following
+
+     -e MODS_FILE=/extras/mods.txt
+
+would load from a file mounted into the container at `/extras/mods.txt`. That file might look like:
+
+```text
+https://edge.forgecdn.net/files/2965/233/Bookshelf-1.15.2-5.6.40.jar
+https://edge.forgecdn.net/files/2926/27/ProgressiveBosses-2.1.5-mc1.15.2.jar
+# This and next line are ignored
+#https://edge.forgecdn.net/files/3248/905/goblintraders-1.3.1-1.15.2.jar
+https://edge.forgecdn.net/files/3272/32/jei-1.15.2-6.0.3.16.jar
+https://edge.forgecdn.net/files/2871/647/ToastControl-1.15.2-3.0.1.jar
+```
+> Blank lines and lines that start with a `#` will be ignored
+
+> [This compose file](examples/docker-compose-mods-file.yml) shows another example of using this feature.
+
+> It is recommended to combine this option with `REMOVE_OLD_MODS=TRUE` to ensure the mods/plugins remain consistent with the file's listing.
+
 ### Remove old mods/plugins
 
 When the option above is specified (`MODPACK`) you can also instruct script to
 delete old mods/plugins prior to installing new ones. This behaviour is desirable
 in case you want to upgrade mods/plugins from downloaded zip file.
-To use this option pass the environment variable `REMOVE_OLD_MODS="TRUE"`, such as
+To use this option pass the environment variable `REMOVE_OLD_MODS=TRUE`, such as
 
-    docker run -d -e REMOVE_OLD_MODS="TRUE" -e MODPACK=http://www.example.com/mods/modpack.zip ...
+    docker run -d -e REMOVE_OLD_MODS=TRUE -e MODPACK=http://www.example.com/mods/modpack.zip ...
 
 **WARNING:** All content of the `mods` or `plugins` directory will be deleted
 before unpacking new content from the MODPACK or MODS.
@@ -734,18 +794,17 @@ The world will only be downloaded or copied if it doesn't exist already. Set `FO
 
 ## Server configuration
 
-By default the server configuration will be created and set based on the following
-environment variables, but only the first time the server is started. If the
-`server.properties` file already exists, the values in them will not be changed.
+By default, the server configuration will be created and set based on the following environment variables, but only the first time the server is started. If the `server.properties` file already exists, the values in them will not be changed.
 
-If you would like to override the server configuration each time the container
-starts up, you can set the OVERRIDE_SERVER_PROPERTIES environment variable like:
+If you would like to override the server configuration each time the container starts up, you can set the `OVERRIDE_SERVER_PROPERTIES` environment variable like:
 
     docker run -d -e OVERRIDE_SERVER_PROPERTIES=true ...
 
-This will reset any manual configuration of the `server.properties` file, so if
-you want to make any persistent configuration changes you will need to make sure
-you have properly set the proper environment variables in your docker run command (described below).
+This will reset any manual configuration of the `server.properties` file, so if you want to make any persistent configuration changes you will need to make sure you have properly set the proper environment variables in your container configuration.
+
+In the opposite case, you can skip the startup script's creation of `server.properties`, by setting `SKIP_SERVER_PROPERTIES` to "true".
+
+> NOTE: to clear a server property, set the variable to an empty string, such as `-e RESOURCE_PACK=""`. A variables that maps to a server property that is unset, is ignored and the existing `server.property` is left unchanged. 
 
 ### Message of the Day
 
@@ -779,24 +838,37 @@ values.
 
 ### Whitelist Players
 
-To whitelist players for your Minecraft server, pass the Minecraft usernames separated by commas via the `WHITELIST` environment variable, such as
+> **NOTE** it is very important to set this with servers exposed to the internet where you want only limited players to join.
 
-    docker run -d -e WHITELIST=user1,user2 ...
+To whitelist players for your Minecraft server, you can:
+- Provide the url or path to a whitelist file via `WHITELIST_FILE` environment variable  
+    `docker run -d -e WHITELIST_FILE=/extra/whitelist.json ...`
+- Provide a list of usernames and/or UUIDs separated by commas via the `WHITELIST` environment variable  
+    `docker run -d -e WHITELIST=user1,uuid2 ...`
 
-If the `WHITELIST` environment variable is not used, any user can join your Minecraft server if it's publicly accessible.
+To enforce the whitelist and auto-kick players not included in whitelist configuration, set `ENFORCE_WHITELIST=TRUE`. **By default** any user can join your Minecraft server if it's publicly accessible, regardless of your whitelist configuration.
 
-> NOTE: When `WHITELIST` is used the server properties `white-list` and `whitelist` will automatically get set to `true`.
+If whitelist configuration already exists, `WHITELIST_FILE` will not be retrieved and any usernames in `WHITELIST` are **added** to the whitelist configuration. You can enforce regeneration of the whitelist on each server startup by setting `OVERRIDE_WHITELIST` to "true". This will delete the whitelist file before processing whitelist configuration.
 
-> By default, the players in `WHITELIST` are **added** to the final `whitelist.json` file by the Minecraft server. If you set `OVERRIDE_WHITELIST` to "true" then the `whitelist.json` file will be recreated on each server startup.
+> NOTE: You can provide both `WHITELIST_FILE` and `WHITELIST`, which are processed in that order.
 
-Alternatively, you can set `ENABLE_WHITELIST=true` to only set the server properties `white-list` and `whitelist` without modifying the whitelist file. In this case the whitelist is solely managed using the `whitelist add` and `whitelist remove` commands.
+> NOTE: UUIDs passed via `WHITELIST` need to be the dashed variant, otherwise it not be recognised and instead added as a username.
+
+> If running Minecraft 1.7.5 or earlier, these variables will apply to `white-list.txt`, with 1.7.6 implementing support for `whitelist.json`. Make sure your `WHITELIST_FILE` is in the appropriate format.
+
+If either `WHITELIST_FILE` or `WHITELIST` is provided, the server property `white-list` is automatically set to `true`, enabline whitelist functionality. Alternatively you can set `ENABLE_WHITELIST=TRUE` to only set the server property `white-list` without modifying the whitelist file. In this case the whitelist can be managed using the `whitelist add` and `whitelist remove` commands. Remember you can set enforcement via the `ENFORCE_WHITELIST` variable.
+
 ### Op/Administrator Players
 
-To add more "op" (aka adminstrator) users to your Minecraft server, pass the Minecraft usernames separated by commas via the `OPS` environment variable, such as
+Similar to the whitelist, to add users as operators (aka adminstrators) to your Minecraft server, you can:
+- Provide te url or path to an ops file via `OPS_FILE` environment variable  
+    `docker run -d -e OPS_FILE=https://config.example.com/extra/ops.json ...`
+- Provide a list of usernames and/or UUIDs separated by commas via the `OPS` environment variable  
+    `docker run -d -e OPS=user1,uuid2 ...`
 
-    docker run -d -e OPS=user1,user2 ...
+If ops configuration already exists, `OPS_FILE` will not be retrieved and any usernames in `OPS` are **added** to the ops configuration. You can enforce regeneration of the ops configuration on each server startup by setting `OVERRIDE_OPS` to "true". This will delete the ops file before processing ops configuration.
 
-> By default, the players in `OPS` are **added** to the final `ops.json` file by the Minecraft server. If you set `OVERRIDE_OPS` to "true" then the `ops.json` file will be recreated on each server startup.
+> Similar to whitelists, you can provide both `OPS_FILE` and `OPS`, and Minecraft 1.7.5 or earlier will use `ops.txt` rather than `ops.json`.
 
 ### Server icon
 
@@ -812,6 +884,7 @@ The server icon which has been set doesn't get overridden by default. It can be 
 ### Rcon
 
 To use rcon use the `ENABLE_RCON` and `RCON_PASSWORD` variables.
+The default RCON password is _"minecraft",_ but it's **highly** recommended to override that.
 By default rcon port will be `25575` but can easily be changed with the `RCON_PORT` variable.
 
     docker run -d -e ENABLE_RCON=true -e RCON_PASSWORD=testing
@@ -993,9 +1066,9 @@ In Minecraft 1.13+ you need to pass json ([generator site](https://misode.github
 
 You can set a link to a custom resource pack and set it's checksum using the `RESOURCE_PACK` and `RESOURCE_PACK_SHA1` options respectively, the default is blank:
 
-    docker run -d -e 'RESOURCE_PACK=http\://link.com/to/pack.zip?\=1' -e 'RESOURCE_PACK_SHA1=d5db29cd03a2ed055086cef9c31c252b4587d6d0'
+    docker run -d -e 'RESOURCE_PACK=http://link.com/to/pack.zip?=1' -e 'RESOURCE_PACK_SHA1=d5db29cd03a2ed055086cef9c31c252b4587d6d0'
 
-**NOTE:** `:` and `=` must be escaped using `\`. The checksum plain-text hexadecimal.
+You can enforce the resource pack on clients by setting `RESOURCE_PACK_ENFORCE` to `TRUE` (default: `FALSE`).
 
 ### Level / World Save Name
 
@@ -1055,6 +1128,7 @@ If you must, the server port can be set like:
 | USE_NATIVE_TRANSPORT              | use-native-transport              |
 | ENFORCE_WHITELIST                 | enforce-whitelist                 |
 | ENABLE_WHITELIST                  | white-list and whitelist          |
+| SIMULATION_DISTANCE               | simulation-distance               |
 
 ## Miscellaneous Options
 
@@ -1223,13 +1297,16 @@ The values of all three are passed directly to the JVM and support format/units 
 
     -e MEMORY=2G
 
-> NOTE: the settings above only set the Java **heap** limits. Memory resource requests and limits on the overall container should also account for non-heap memory usage. An extra 25% is [a general best practice](https://dzone.com/articles/best-practices-java-memory-arguments-for-container).
+To let the JVM calculate the heap size from the container declared memory limit, unset `MEMORY` with an empty value, such as `-e MEMORY=""`. By default, the JVM will use 25% of the container memory limit as the heap limit; however, as an example the following would tell the JVM to use 75% of the container limit of 2GB of memory:
+
+     -e MEMORY="" -e JVM_XX_OPTS="-XX:MaxRAMPercentage=75" -m 2000M
+
+> The settings above only set the Java **heap** limits. Memory resource requests and limits on the overall container should also account for non-heap memory usage. An extra 25% is [a general best practice](https://dzone.com/articles/best-practices-java-memory-arguments-for-container).
 
 ### JVM Options
 
 General JVM options can be passed to the Minecraft Server invocation by passing a `JVM_OPTS`
-environment variable. Options like `-X` that need to proceed general JVM options can be passed
-via a `JVM_XX_OPTS` environment variable.
+environment variable. The JVM requires `-XX` options to precede `-X` options, so those can be declared in `JVM_XX_OPTS`. Both variables are space-delimited, raw JVM arguments.
 
 For some cases, if e.g. after removing mods, it could be necessary to startup minecraft with an additional `-D` parameter like `-Dfml.queryResult=confirm`. To address this you can use the environment variable `JVM_DD_OPTS`, which builds the params from a given list of values separated by space, but without the `-D` prefix. To make things running under systems (e.g. Plesk), which doesn't allow `=` inside values, a `:` (colon) could be used instead. The upper example would look like this:
 `JVM_DD_OPTS=fml.queryResult:confirm`, and will be converted to `-Dfml.queryResult=confirm`.
@@ -1249,6 +1326,8 @@ If you would like to `docker attach` to the Minecraft server console with color 
 > This will bypass graceful server shutdown handling when using `docker stop`, so be sure the server console's `stop` command.
 > 
 > Make to enable stdin and tty with `-it` when using `docker run` or `stdin_open: true` and `tty: true` when using docker compose.
+>
+> This feature is incompatible with Autopause and cannot be set when `ENABLE_AUTOPAUSE=true`.
 
 ### Server Shutdown Options
 
@@ -1303,7 +1382,7 @@ To enable remote JMX, such as for profiling with VisualVM or JMC, add the enviro
 
 ### Enable Aikar's Flags
 
-[Aikar has does some research](https://mcflags.emc.gs/) into finding the optimal JVM flags for GC tuning, which becomes more important as more users are connected concurrently. The set of flags documented there can be added using
+[Aikar has does some research](https://aikar.co/2018/07/02/tuning-the-jvm-g1gc-garbage-collector-flags-for-minecraft/) into finding the optimal JVM flags for GC tuning, which becomes more important as more users are connected concurrently. The set of flags documented there can be added using
 
     -e USE_AIKAR_FLAGS=true
 
@@ -1366,6 +1445,8 @@ Enable the Autopause functionality by setting:
 -e ENABLE_AUTOPAUSE=TRUE
 ```
 
+Autopause is not compatible with `EXEC_DIRECTLY=true` and the two cannot be set together.
+
 The following environment variables define the behaviour of auto-pausing:
 * `AUTOPAUSE_TIMEOUT_EST`, default `3600` (seconds)
   describes the time between the last client disconnect and the pausing of the process (read as timeout established)
@@ -1385,3 +1466,7 @@ To run this image on a RaspberryPi 3 B+, 4, or newer, use any of the image tags 
 > NOTE: you may need to lower the memory allocation, such as `-e MEMORY=750m`
 
 > If experiencing issues such as "sleep: cannot read realtime clock: Operation not permitted", ensure `libseccomp` is up to date on your host. In some cases adding `:Z` flag to the `/data` mount may be needed, [but use cautiously](https://docs.docker.com/storage/bind-mounts/#configure-the-selinux-label).
+
+## Contributing
+    
+See [Development](DEVELOPMENT.md) and [Building](BUILDING.md).
